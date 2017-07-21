@@ -16,7 +16,8 @@ public enum Currency {
     CHF("756"), CAD("124"), CZK("203"), HRK("191"),
     MKD("807"), PLN("985"), RUB("643"), NZD("554"),
     AUD("036"), CNY("156"), DKK("208"), JPY("392"),
-    KWD("414"), NOK("578"), SEK("752"), GBP("826");
+    KWD("414"), NOK("578"), SEK("752"), GBP("826"),
+    HUF("348");
     private String numericCode;
     Currency(String numericCode) {
         this.numericCode = numericCode;
@@ -31,5 +32,13 @@ public enum Currency {
             }
         }
         throw new NotFound("Not found currency by numeric code: " + numericCode, null, null);
+    }
+    public static Currency convertFromString(String isoCode) throws Exception {
+        for (Currency c: Currency.values()) {
+            if (c.toString().equalsIgnoreCase(isoCode)) {
+                return c;
+            }
+        }
+        throw new NotFound("Not found currency by ISO code: " + isoCode, null, null);
     }
 }

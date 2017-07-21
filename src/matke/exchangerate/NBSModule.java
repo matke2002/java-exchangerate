@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpResponse;
@@ -28,29 +29,57 @@ import org.apache.http.message.BasicNameValuePair;
  * @author ivan
  */
 public class NBSModule implements IExchangeRate{
-    public NBSModule() {}
+    private Date lastChecked;
+    private HashMap<Currency,BigDecimal> hm;
+    public NBSModule() {
+        lastChecked = new Date(0);
+        hm = new HashMap<Currency,BigDecimal>();
+    }
 
     @Override
     public BigDecimal getRate(Currency source, Currency destination) throws Exception{
         if (!destination.equals(Currency.RSD)) {
             throw new DestinationCurrencyError("ONLY RSD is supported in NBS module as destination");
         }
-        StringBuffer readDataFromSite = readDataFromSite();
-        BigDecimal value = parseSiteCsv(readDataFromSite, source);
+        BigDecimal value = null;
+        StringBuffer readDataFromSite = null;
+        if (hm.isEmpty()) {
+            readDataFromSite = readDataFromSite();
+        }
+        value = parseSiteCsv(readDataFromSite, source);
         System.out.println("NBS: " + value.toString());
+        
         return value;
     }
     private BigDecimal parseSiteCsv(StringBuffer data, Currency source) {
-        String [] lines = data.toString().split("\n");
         BigDecimal result = null;
-        for (String line:lines) {
-            String [] elements = line.split(",");
-            if (source.toString().equalsIgnoreCase(elements[4])) {
-                BigDecimal sourceValue = new BigDecimal(elements[5]);
-                BigDecimal destinationValue = new BigDecimal(elements[6]);
-                result = destinationValue.divide(sourceValue);
+        
+        Date now = new Date();
+        long diffInMillies = (now.getTime() - lastChecked.getTime()) / 60000;
+    //    long passedMinutes = getDateDiff(now, this.lastCheched, TimeUnit.MINUTES);
+        boolean rebuildList = false;
+        if (diffInMillies > 60) {
+            rebuildList = true;
+            lastChecked = new Date();
+            hm.clear();
+        }
+
+        if (rebuildList) {
+            String [] lines = data.toString().split("\n");
+        
+            for (String line:lines) {
+                String [] elements = line.split(",");
+                try {
+                //if (source.toString().equalsIgnoreCase(elements[4])) {
+                    BigDecimal sourceValue = new BigDecimal(elements[5]);
+                    BigDecimal destinationValue = new BigDecimal(elements[6]);
+                    BigDecimal div = destinationValue.divide(sourceValue);
+                    hm.put(Currency.convertFromString(elements[4]), div);
+                //}
+                } catch (Exception ex) {  }
             }
         }
+        result = hm.get(source);
         return result;
     }
     private StringBuffer readDataFromSite() throws Exception {
